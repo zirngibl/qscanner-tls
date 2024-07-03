@@ -67,7 +67,7 @@ func TestMarshalUnmarshal(t *testing.T) {
 
 				m1 := v.Interface().(handshakeMessage)
 				marshaled := mustMarshal(t, m1)
-				if !m.unmarshal(marshaled) {
+				if !m.unmarshal(marshaled, &Conn{}) {
 					t.Errorf("#%d failed to unmarshal %#v %x", i, m1, marshaled)
 					break
 				}
@@ -100,7 +100,7 @@ func TestMarshalUnmarshal(t *testing.T) {
 					// data is optional and the length of the
 					// Finished varies across versions.
 					for j := 0; j < len(marshaled); j++ {
-						if m.unmarshal(marshaled[0:j]) {
+						if m.unmarshal(marshaled[0:j], &Conn{}) {
 							t.Errorf("#%d unmarshaled a prefix of length %d of %#v", i, j, m1)
 							break
 						}
@@ -118,7 +118,7 @@ func TestFuzz(t *testing.T) {
 			len := rand.Intn(1000)
 			bytes := randomBytes(len, rand)
 			// This just looks for crashes due to bounds errors etc.
-			m.unmarshal(bytes)
+			m.unmarshal(bytes, nil)
 		}
 	}
 }
@@ -419,7 +419,7 @@ func (*SessionState) Generate(rand *rand.Rand, size int) reflect.Value {
 }
 
 func (s *SessionState) marshal() ([]byte, error) { return s.Bytes() }
-func (s *SessionState) unmarshal(b []byte) bool {
+func (s *SessionState) unmarshal(b []byte, conn *Conn) bool {
 	ss, err := ParseSessionState(b)
 	if err != nil {
 		return false
@@ -507,7 +507,7 @@ func TestRejectEmptySCTList(t *testing.T) {
 	serverHelloBytes := mustMarshal(t, serverHello)
 
 	var serverHelloCopy serverHelloMsg
-	if !serverHelloCopy.unmarshal(serverHelloBytes) {
+	if !serverHelloCopy.unmarshal(serverHelloBytes, &Conn{}) {
 		t.Fatal("Failed to unmarshal initial message")
 	}
 
@@ -532,7 +532,7 @@ func TestRejectEmptySCTList(t *testing.T) {
 	serverHelloEmptySCT[42] = byte((len(serverHelloEmptySCT) - 44) >> 8)
 	serverHelloEmptySCT[43] = byte((len(serverHelloEmptySCT) - 44))
 
-	if serverHelloCopy.unmarshal(serverHelloEmptySCT) {
+	if serverHelloCopy.unmarshal(serverHelloEmptySCT, &Conn{}) {
 		t.Fatal("Unmarshaled ServerHello with empty SCT list")
 	}
 }
@@ -550,7 +550,7 @@ func TestRejectEmptySCT(t *testing.T) {
 	serverHelloBytes := mustMarshal(t, serverHello)
 
 	var serverHelloCopy serverHelloMsg
-	if serverHelloCopy.unmarshal(serverHelloBytes) {
+	if serverHelloCopy.unmarshal(serverHelloBytes, &Conn{}) {
 		t.Fatal("Unmarshaled ServerHello with zero-length SCT")
 	}
 }
@@ -561,7 +561,7 @@ func TestRejectDuplicateExtensions(t *testing.T) {
 		t.Fatalf("failed to decode test ClientHello: %s", err)
 	}
 	var clientHelloCopy clientHelloMsg
-	if clientHelloCopy.unmarshal(clientHelloBytes) {
+	if clientHelloCopy.unmarshal(clientHelloBytes, &Conn{}) {
 		t.Error("Unmarshaled ClientHello with duplicate extensions")
 	}
 
@@ -570,7 +570,7 @@ func TestRejectDuplicateExtensions(t *testing.T) {
 		t.Fatalf("failed to decode test ServerHello: %s", err)
 	}
 	var serverHelloCopy serverHelloMsg
-	if serverHelloCopy.unmarshal(serverHelloBytes) {
+	if serverHelloCopy.unmarshal(serverHelloBytes, &Conn{}) {
 		t.Fatal("Unmarshaled ServerHello with duplicate extensions")
 	}
 }

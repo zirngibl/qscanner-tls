@@ -19,8 +19,8 @@ package fipsonly
 // new source file and not modifying any existing source files.
 
 import (
-	"crypto/internal/boring/fipstls"
-	"crypto/internal/boring/sig"
+	"github.com/zirngibl/qscanner-tls/internal/boring/fipstls"
+	"github.com/zirngibl/qscanner-tls/internal/boring/sig"
 )
 
 func init() {

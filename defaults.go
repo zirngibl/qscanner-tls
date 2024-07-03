@@ -5,7 +5,7 @@
 package tls
 
 import (
-	"internal/godebug"
+	"os"
 	"slices"
 	_ "unsafe" // for linkname
 )
@@ -13,10 +13,11 @@ import (
 // Defaults are collected in this file to allow distributions to more easily patch
 // them to apply local policies.
 
-var tlskyber = godebug.New("tlskyber")
+//var tlskyber = true
 
 func defaultCurvePreferences() []CurveID {
-	if tlskyber.Value() == "0" {
+	//fmt.Println(os.Getenv("GODEBUG"))
+	if os.Getenv("GODEBUG") == "tlskyber=0" {
 		return []CurveID{X25519, CurveP256, CurveP384, CurveP521}
 	}
 	// For now, x25519Kyber768Draft00 must always be followed by X25519.
@@ -42,15 +43,15 @@ var defaultSupportedSignatureAlgorithms = []SignatureScheme{
 	ECDSAWithSHA1,
 }
 
-var tlsrsakex = godebug.New("tlsrsakex")
-var tls3des = godebug.New("tls3des")
+var tlsrsakex = false
+var tls3des = false
 
 func defaultCipherSuites() []uint16 {
 	suites := slices.Clone(cipherSuitesPreferenceOrder)
 	return slices.DeleteFunc(suites, func(c uint16) bool {
 		return disabledCipherSuites[c] ||
-			tlsrsakex.Value() != "1" && rsaKexCiphers[c] ||
-			tls3des.Value() != "1" && tdesCiphers[c]
+			!tlsrsakex && rsaKexCiphers[c] ||
+			!tls3des && tdesCiphers[c]
 	})
 }
 

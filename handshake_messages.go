@@ -5,6 +5,7 @@
 package tls
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"slices"
@@ -413,7 +414,7 @@ func (m *clientHelloMsg) updateBinders(pskBinders [][]byte) error {
 	return nil
 }
 
-func (m *clientHelloMsg) unmarshal(data []byte) bool {
+func (m *clientHelloMsg) unmarshal(data []byte, conn *Conn) bool {
 	*m = clientHelloMsg{original: data}
 	s := cryptobyte.String(data)
 
@@ -861,7 +862,7 @@ func (m *serverHelloMsg) marshal() ([]byte, error) {
 	return b.Bytes()
 }
 
-func (m *serverHelloMsg) unmarshal(data []byte) bool {
+func (m *serverHelloMsg) unmarshal(data []byte, conn *Conn) bool {
 	*m = serverHelloMsg{original: data}
 	s := cryptobyte.String(data)
 
@@ -883,6 +884,13 @@ func (m *serverHelloMsg) unmarshal(data []byte) bool {
 		return false
 	}
 
+	isHRR := bytes.Equal(m.random, helloRetryRequestRandom)
+	if isHRR {
+		conn.helloRetryRequestExtensions = make([]Extension, 0)
+	} else {
+		conn.serverExtensions = make([]Extension, 0)
+	}
+
 	seenExts := make(map[uint16]bool)
 	for !extensions.Empty() {
 		var extension uint16
@@ -890,6 +898,13 @@ func (m *serverHelloMsg) unmarshal(data []byte) bool {
 		if !extensions.ReadUint16(&extension) ||
 			!extensions.ReadUint16LengthPrefixed(&extData) {
 			return false
+		}
+
+		// Here we have the Extension and Data before unknown ones   are discarded
+		if isHRR {
+			conn.helloRetryRequestExtensions = append(conn.helloRetryRequestExtensions, Extension{Type: extension, Data: extData})
+		} else {
+			conn.serverExtensions = append(conn.serverExtensions, Extension{Type: extension, Data: extData})
 		}
 
 		if seenExts[extension] {
@@ -1039,7 +1054,7 @@ func (m *encryptedExtensionsMsg) marshal() ([]byte, error) {
 	return b.Bytes()
 }
 
-func (m *encryptedExtensionsMsg) unmarshal(data []byte) bool {
+func (m *encryptedExtensionsMsg) unmarshal(data []byte, conn *Conn) bool {
 	*m = encryptedExtensionsMsg{}
 	s := cryptobyte.String(data)
 
@@ -1049,6 +1064,8 @@ func (m *encryptedExtensionsMsg) unmarshal(data []byte) bool {
 		return false
 	}
 
+	conn.serverEncryptedExtensions = make([]Extension, 0)
+
 	for !extensions.Empty() {
 		var extension uint16
 		var extData cryptobyte.String
@@ -1056,6 +1073,9 @@ func (m *encryptedExtensionsMsg) unmarshal(data []byte) bool {
 			!extensions.ReadUint16LengthPrefixed(&extData) {
 			return false
 		}
+
+		// Here we have the Extension and Data before unknown ones are discarded
+		conn.serverEncryptedExtensions = append(conn.serverEncryptedExtensions, Extension{Type: extension, Data: extData})
 
 		switch extension {
 		case extensionALPN:
@@ -1103,7 +1123,7 @@ func (m *endOfEarlyDataMsg) marshal() ([]byte, error) {
 	return x, nil
 }
 
-func (m *endOfEarlyDataMsg) unmarshal(data []byte) bool {
+func (m *endOfEarlyDataMsg) unmarshal(data []byte, conn *Conn) bool {
 	return len(data) == 4
 }
 
@@ -1125,7 +1145,7 @@ func (m *keyUpdateMsg) marshal() ([]byte, error) {
 	return b.Bytes()
 }
 
-func (m *keyUpdateMsg) unmarshal(data []byte) bool {
+func (m *keyUpdateMsg) unmarshal(data []byte, conn *Conn) bool {
 	s := cryptobyte.String(data)
 
 	var updateRequested uint8
@@ -1178,7 +1198,7 @@ func (m *newSessionTicketMsgTLS13) marshal() ([]byte, error) {
 	return b.Bytes()
 }
 
-func (m *newSessionTicketMsgTLS13) unmarshal(data []byte) bool {
+func (m *newSessionTicketMsgTLS13) unmarshal(data []byte, conn *Conn) bool {
 	*m = newSessionTicketMsgTLS13{}
 	s := cryptobyte.String(data)
 
@@ -1287,7 +1307,7 @@ func (m *certificateRequestMsgTLS13) marshal() ([]byte, error) {
 	return b.Bytes()
 }
 
-func (m *certificateRequestMsgTLS13) unmarshal(data []byte) bool {
+func (m *certificateRequestMsgTLS13) unmarshal(data []byte, conn *Conn) bool {
 	*m = certificateRequestMsgTLS13{}
 	s := cryptobyte.String(data)
 
@@ -1299,6 +1319,8 @@ func (m *certificateRequestMsgTLS13) unmarshal(data []byte) bool {
 		return false
 	}
 
+	conn.serverCertRequestExtensions = make([]Extension, 0)
+
 	for !extensions.Empty() {
 		var extension uint16
 		var extData cryptobyte.String
@@ -1306,6 +1328,8 @@ func (m *certificateRequestMsgTLS13) unmarshal(data []byte) bool {
 			!extensions.ReadUint16LengthPrefixed(&extData) {
 			return false
 		}
+
+		conn.serverCertRequestExtensions = append(conn.serverCertRequestExtensions, Extension{Type: extension, Data: extData})
 
 		switch extension {
 		case extensionStatusRequest:
@@ -1397,7 +1421,7 @@ func (m *certificateMsg) marshal() ([]byte, error) {
 	return x, nil
 }
 
-func (m *certificateMsg) unmarshal(data []byte) bool {
+func (m *certificateMsg) unmarshal(data []byte, conn *Conn) bool {
 	if len(data) < 7 {
 		return false
 	}
@@ -1495,14 +1519,14 @@ func marshalCertificate(b *cryptobyte.Builder, certificate Certificate) {
 	})
 }
 
-func (m *certificateMsgTLS13) unmarshal(data []byte) bool {
+func (m *certificateMsgTLS13) unmarshal(data []byte, conn *Conn) bool {
 	*m = certificateMsgTLS13{}
 	s := cryptobyte.String(data)
 
 	var context cryptobyte.String
 	if !s.Skip(4) || // message type and uint24 length field
 		!s.ReadUint8LengthPrefixed(&context) || !context.Empty() ||
-		!unmarshalCertificate(&s, &m.certificate) ||
+		!unmarshalCertificate(&s, &m.certificate, conn) ||
 		!s.Empty() {
 		return false
 	}
@@ -1513,7 +1537,7 @@ func (m *certificateMsgTLS13) unmarshal(data []byte) bool {
 	return true
 }
 
-func unmarshalCertificate(s *cryptobyte.String, certificate *Certificate) bool {
+func unmarshalCertificate(s *cryptobyte.String, certificate *Certificate, conn *Conn) bool {
 	var certList cryptobyte.String
 	if !s.ReadUint24LengthPrefixed(&certList) {
 		return false
@@ -1526,6 +1550,7 @@ func unmarshalCertificate(s *cryptobyte.String, certificate *Certificate) bool {
 			return false
 		}
 		certificate.Certificate = append(certificate.Certificate, cert)
+		conn.certificateExtensions = make([]Extension, 0)
 		for !extensions.Empty() {
 			var extension uint16
 			var extData cryptobyte.String
@@ -1537,6 +1562,8 @@ func unmarshalCertificate(s *cryptobyte.String, certificate *Certificate) bool {
 				// This library only supports OCSP and SCT for leaf certificates.
 				continue
 			}
+
+			conn.certificateExtensions = append(conn.certificateExtensions, Extension{Type: extension, Data: extData})
 
 			switch extension {
 			case extensionStatusRequest:
@@ -1589,7 +1616,7 @@ func (m *serverKeyExchangeMsg) marshal() ([]byte, error) {
 	return x, nil
 }
 
-func (m *serverKeyExchangeMsg) unmarshal(data []byte) bool {
+func (m *serverKeyExchangeMsg) unmarshal(data []byte, conn *Conn) bool {
 	if len(data) < 4 {
 		return false
 	}
@@ -1614,7 +1641,7 @@ func (m *certificateStatusMsg) marshal() ([]byte, error) {
 	return b.Bytes()
 }
 
-func (m *certificateStatusMsg) unmarshal(data []byte) bool {
+func (m *certificateStatusMsg) unmarshal(data []byte, conn *Conn) bool {
 	s := cryptobyte.String(data)
 
 	var statusType uint8
@@ -1635,7 +1662,7 @@ func (m *serverHelloDoneMsg) marshal() ([]byte, error) {
 	return x, nil
 }
 
-func (m *serverHelloDoneMsg) unmarshal(data []byte) bool {
+func (m *serverHelloDoneMsg) unmarshal(data []byte, conn *Conn) bool {
 	return len(data) == 4
 }
 
@@ -1655,7 +1682,7 @@ func (m *clientKeyExchangeMsg) marshal() ([]byte, error) {
 	return x, nil
 }
 
-func (m *clientKeyExchangeMsg) unmarshal(data []byte) bool {
+func (m *clientKeyExchangeMsg) unmarshal(data []byte, conn *Conn) bool {
 	if len(data) < 4 {
 		return false
 	}
@@ -1681,7 +1708,7 @@ func (m *finishedMsg) marshal() ([]byte, error) {
 	return b.Bytes()
 }
 
-func (m *finishedMsg) unmarshal(data []byte) bool {
+func (m *finishedMsg) unmarshal(data []byte, conn *Conn) bool {
 	s := cryptobyte.String(data)
 	return s.Skip(1) &&
 		readUint24LengthPrefixed(&s, &m.verifyData) &&
@@ -1748,7 +1775,7 @@ func (m *certificateRequestMsg) marshal() ([]byte, error) {
 	return x, nil
 }
 
-func (m *certificateRequestMsg) unmarshal(data []byte) bool {
+func (m *certificateRequestMsg) unmarshal(data []byte, conn *Conn) bool {
 	if len(data) < 5 {
 		return false
 	}
@@ -1843,7 +1870,7 @@ func (m *certificateVerifyMsg) marshal() ([]byte, error) {
 	return b.Bytes()
 }
 
-func (m *certificateVerifyMsg) unmarshal(data []byte) bool {
+func (m *certificateVerifyMsg) unmarshal(data []byte, conn *Conn) bool {
 	s := cryptobyte.String(data)
 
 	if !s.Skip(4) { // message type and uint24 length field
@@ -1877,7 +1904,7 @@ func (m *newSessionTicketMsg) marshal() ([]byte, error) {
 	return x, nil
 }
 
-func (m *newSessionTicketMsg) unmarshal(data []byte) bool {
+func (m *newSessionTicketMsg) unmarshal(data []byte, conn *Conn) bool {
 	if len(data) < 10 {
 		return false
 	}
@@ -1904,7 +1931,7 @@ func (*helloRequestMsg) marshal() ([]byte, error) {
 	return []byte{typeHelloRequest, 0, 0, 0}, nil
 }
 
-func (*helloRequestMsg) unmarshal(data []byte) bool {
+func (*helloRequestMsg) unmarshal(data []byte, conn *Conn) bool {
 	return len(data) == 4
 }
 

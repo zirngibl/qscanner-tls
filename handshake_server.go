@@ -14,8 +14,8 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
+	"github.com/zirngibl/qscanner-tls/internal/byteorder"
 	"hash"
-	"internal/byteorder"
 	"io"
 	"time"
 )
@@ -168,11 +168,6 @@ func (c *Conn) readClientHello(ctx context.Context) (*clientHelloMsg, error) {
 	c.haveVers = true
 	c.in.version = c.vers
 	c.out.version = c.vers
-
-	if c.config.MinVersion == 0 && c.vers < VersionTLS12 {
-		tls10server.Value() // ensure godebug is initialized
-		tls10server.IncNonDefault()
-	}
 
 	return clientHello, nil
 }
@@ -371,15 +366,6 @@ func (hs *serverHandshakeState) pickCipherSuite() error {
 		return errors.New("tls: no cipher suite supported by both client and server")
 	}
 	c.cipherSuite = hs.suite.id
-
-	if c.config.CipherSuites == nil && !needFIPS() && rsaKexCiphers[hs.suite.id] {
-		tlsrsakex.Value() // ensure godebug is initialized
-		tlsrsakex.IncNonDefault()
-	}
-	if c.config.CipherSuites == nil && !needFIPS() && tdesCiphers[hs.suite.id] {
-		tls3des.Value() // ensure godebug is initialized
-		tls3des.IncNonDefault()
-	}
 
 	for _, id := range hs.clientHello.cipherSuites {
 		if id == TLS_FALLBACK_SCSV {

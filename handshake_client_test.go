@@ -18,7 +18,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"internal/byteorder"
+	"github.com/zirngibl/qscanner-tls/internal/byteorder"
 	"io"
 	"math/big"
 	"net"
@@ -1492,7 +1492,7 @@ func TestHostnameInSNI(t *testing.T) {
 		s.Close()
 
 		var m clientHelloMsg
-		if !m.unmarshal(record) {
+		if !m.unmarshal(record, nil) {
 			t.Errorf("unmarshaling ClientHello for %q failed", tt.in)
 			continue
 		}

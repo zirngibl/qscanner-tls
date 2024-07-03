@@ -9,10 +9,10 @@ import (
 	"context"
 	"crypto"
 	"crypto/hmac"
-	"crypto/internal/mlkem768"
 	"crypto/rsa"
 	"crypto/subtle"
 	"errors"
+	"github.com/zirngibl/qscanner-tls/internal/mlkem768"
 	"hash"
 	"slices"
 	"time"
@@ -408,6 +408,7 @@ func (hs *clientHandshakeStateTLS13) processHelloRetryRequest() error {
 		c.sendAlert(alertUnexpectedMessage)
 		return unexpectedMessageError(serverHello, msg)
 	}
+	hs.c.serverHello = serverHello
 	hs.serverHello = serverHello
 
 	if err := hs.checkServerHelloOrHRR(); err != nil {

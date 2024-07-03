@@ -18,7 +18,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"internal/testenv"
+	"github.com/zirngibl/qscanner-tls/internal/testenv"
 	"io"
 	"math"
 	"math/big"

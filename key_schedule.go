@@ -7,7 +7,7 @@ package tls
 import (
 	"crypto/ecdh"
 	"crypto/hmac"
-	"crypto/internal/mlkem768"
+	"github.com/zirngibl/qscanner-tls/internal/mlkem768"
 	"errors"
 	"fmt"
 	"hash"

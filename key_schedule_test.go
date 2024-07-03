@@ -6,7 +6,7 @@ package tls
 
 import (
 	"bytes"
-	"crypto/internal/mlkem768"
+	"github.com/zirngibl/qscanner-tls/internal/mlkem768"
 	"encoding/hex"
 	"hash"
 	"strings"

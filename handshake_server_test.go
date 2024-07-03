@@ -250,7 +250,7 @@ func TestRenegotiationExtension(t *testing.T) {
 	var serverHello serverHelloMsg
 	// unmarshal expects to be given the handshake header, but
 	// serverHelloLen doesn't include it.
-	if !serverHello.unmarshal(buf[5 : 9+serverHelloLen]) {
+	if !serverHello.unmarshal(buf[5 : 9+serverHelloLen], &Conn{}) {
 		t.Fatalf("Failed to parse ServerHello")
 	}
 

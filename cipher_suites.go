@@ -10,13 +10,13 @@ import (
 	"crypto/cipher"
 	"crypto/des"
 	"crypto/hmac"
-	"crypto/internal/boring"
 	"crypto/rc4"
 	"crypto/sha1"
 	"crypto/sha256"
 	"fmt"
+	"github.com/zirngibl/qscanner-tls/internal/boring"
+	"github.com/zirngibl/qscanner-tls/internal/cpu"
 	"hash"
-	"internal/cpu"
 	"runtime"
 	_ "unsafe" // for linkname
 

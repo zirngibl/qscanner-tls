@@ -5,7 +5,7 @@
 package tls
 
 import (
-	"crypto/internal/hpke"
+	"github.com/zirngibl/qscanner-tls/internal/hpke"
 	"errors"
 	"strings"
 

@@ -18,7 +18,6 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
-	"internal/godebug"
 	"io"
 	"net"
 	"slices"
@@ -104,6 +103,11 @@ const (
 	compressionNone uint8 = 0
 )
 
+type Extension struct {
+	Type uint16
+	Data []byte
+}
+
 // TLS extension numbers
 const (
 	extensionServerName              uint16 = 0
@@ -159,6 +163,11 @@ const (
 type keyShare struct {
 	group CurveID
 	data  []byte
+}
+
+type KeyShare struct {
+	Group CurveID
+	Data  []byte
 }
 
 // TLS 1.3 PSK Key Exchange Modes. See RFC 8446, Section 4.2.9.
@@ -1083,8 +1092,6 @@ var supportedVersions = []uint16{
 const roleClient = true
 const roleServer = false
 
-var tls10server = godebug.New("tls10server")
-
 func (c *Config) supportedVersions(isClient bool) []uint16 {
 	versions := make([]uint16, 0, len(supportedVersions))
 	for _, v := range supportedVersions {
@@ -1092,7 +1099,7 @@ func (c *Config) supportedVersions(isClient bool) []uint16 {
 			continue
 		}
 		if (c == nil || c.MinVersion == 0) && v < VersionTLS12 {
-			if isClient || tls10server.Value() != "1" {
+			if isClient {
 				continue
 			}
 		}
@@ -1512,7 +1519,7 @@ func (c *Certificate) leaf() (*x509.Certificate, error) {
 
 type handshakeMessage interface {
 	marshal() ([]byte, error)
-	unmarshal([]byte) bool
+	unmarshal([]byte, *Conn) bool
 }
 
 type handshakeMessageWithOriginalBytes interface {

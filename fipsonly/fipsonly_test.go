@@ -7,7 +7,7 @@
 package fipsonly
 
 import (
-	"crypto/internal/boring/fipstls"
+	"github.com/zirngibl/qscanner-tls/internal/boring/fipstls"
 	"testing"
 )
 

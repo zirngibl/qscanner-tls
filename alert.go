@@ -18,6 +18,9 @@ func (e AlertError) Error() string {
 
 type alert uint8
 
+// Alert is a TLS alert
+type Alert = alert
+
 const (
 	// alert level
 	alertLevelWarning = 1

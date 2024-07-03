@@ -6,7 +6,7 @@ package tls
 
 import (
 	"bytes"
-	"internal/testenv"
+	"github.com/zirngibl/qscanner-tls/internal/testenv"
 	"os"
 	"os/exec"
 	"path/filepath"
