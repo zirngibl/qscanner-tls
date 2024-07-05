@@ -1660,8 +1660,33 @@ func (c *Conn) connectionStateLocked() ConnectionState {
 	} else {
 		state.ekm = c.ekm
 	}
+
+	// TLS analysis
+	if c.serverHello != nil {
+       newHello := NewServerHelloMsg(c.serverHello)
+       state.ServerHello = &newHello
+    }
+	state.ServerExtensions = c.serverExtensions
+    state.ServerEncryptedExtensions = c.serverEncryptedExtensions
+    state.ServerCertRequestExtensions = c.serverCertRequestExtensions
+    state.HelloRetryRequestExtensions = c.helloRetryRequestExtensions
+	state.CertificateExtensions = c.certificateExtensions
+	state.ClientHello = NewClientHelloMsg(c.clientHello)
+	state.SendAlerts = parseAlerts(c.sendAlerts)
+	state.RecvAlerts = parseAlerts(c.recvAlerts)
+	state.Errors = c.errors
+
+
 	state.ECHAccepted = c.echAccepted
 	return state
+}
+
+func parseAlerts(alerts []alert) []Alert {
+	result := make([]Alert, len(alerts))
+	for i := range alerts {
+		result[i] = Alert(alerts[i])
+	}
+	return result
 }
 
 // OCSPResponse returns the stapled OCSP response from the TLS server, if

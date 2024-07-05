@@ -100,6 +100,78 @@ type clientHelloMsg struct {
 	encryptedClientHello             []byte
 }
 
+type ClientHelloMsg struct {
+   Raw                              []byte
+   Vers                             uint16
+   Random                           []byte
+   SessionId                        []byte
+   CipherSuites                     []uint16
+   CompressionMethods               []uint8
+   ServerName                       string
+   OcspStapling                     bool
+   SupportedCurves                  []CurveID
+   SupportedPoints                  []uint8
+   TicketSupported                  bool
+   SessionTicket                    []uint8
+   SupportedSignatureAlgorithms     []SignatureScheme
+   SupportedSignatureAlgorithmsCert []SignatureScheme
+   SecureRenegotiationSupported     bool
+   SecureRenegotiation              []byte
+   AlpnProtocols                    []string
+   Scts                             bool
+   SupportedVersions                []uint16
+   Cookie                           []byte
+   KeyShares                        []KeyShare
+   EarlyData                        bool
+   PskModes                         []uint8
+   PskIdentities                    []pskIdentity
+   PskBinders                       [][]byte
+}
+
+func NewClientHelloMsg(m *clientHelloMsg) ClientHelloMsg {
+	if m == nil {
+	      return ClientHelloMsg{}
+	}
+	return ClientHelloMsg{
+	       Raw:                              m.originalBytes(),
+	       Vers:                             m.vers,
+	       Random:                           m.random,
+	       SessionId:                        m.sessionId,
+	       CipherSuites:                     m.cipherSuites,
+	       CompressionMethods:               m.compressionMethods,
+	       ServerName:                       m.serverName,
+	       OcspStapling:                     m.ocspStapling,
+	       SupportedCurves:                  m.supportedCurves,
+	       SupportedPoints:                  m.supportedPoints,
+	       TicketSupported:                  m.ticketSupported,
+	       SessionTicket:                    m.sessionTicket,
+	       SupportedSignatureAlgorithms:     m.supportedSignatureAlgorithms,
+	       SupportedSignatureAlgorithmsCert: m.supportedSignatureAlgorithmsCert,
+	       SecureRenegotiationSupported:     m.secureRenegotiationSupported,
+	       SecureRenegotiation:              m.secureRenegotiation,
+	       AlpnProtocols:                    m.alpnProtocols,
+	       Scts:                             m.scts,
+	       SupportedVersions:                m.supportedVersions,
+	       Cookie:                           m.cookie,
+	       KeyShares:                        exportKeyshare(m.keyShares),
+	       EarlyData:                        m.earlyData,
+	       PskModes:                         m.pskModes,
+	       PskIdentities:                    m.pskIdentities,
+	       PskBinders:                       m.pskBinders,
+	}
+}
+func exportKeyshare(k []keyShare) []KeyShare {
+	var array []KeyShare
+	for _, val := range k {
+		array = append(array, KeyShare{
+			Group: val.group,
+			Data:  val.data,
+		})
+	}
+	return array
+}
+
+
 func (m *clientHelloMsg) marshalMsg(echInner bool) ([]byte, error) {
 	var exts cryptobyte.Builder
 	if len(m.serverName) > 0 {
@@ -709,6 +781,62 @@ func (m *clientHelloMsg) clone() *clientHelloMsg {
 		encryptedClientHello:             slices.Clone(m.encryptedClientHello),
 	}
 }
+
+
+type ServerHelloMsg struct {
+   Raw                          []byte
+   Vers                         uint16
+   Random                       []byte
+   SessionId                    []byte
+   CipherSuite                  uint16
+   CompressionMethod            uint8
+   OcspStapling                 bool
+   TicketSupported              bool
+   SecureRenegotiationSupported bool
+   SecureRenegotiation          []byte
+   AlpnProtocol                 string
+   Scts                         [][]byte
+   SupportedVersion             uint16
+   ServerShare                  KeyShare
+   SelectedIdentityPresent      bool
+   SelectedIdentity             uint16
+   SupportedPoints              []uint8
+
+   // HelloRetryRequest extensions
+   Cookie        []byte
+   SelectedGroup CurveID
+}
+
+func NewServerHelloMsg(m *serverHelloMsg) ServerHelloMsg {
+   if m == nil {
+       return ServerHelloMsg{}
+   }
+   return ServerHelloMsg{
+       Raw:                          m.originalBytes(),
+       Vers:                         m.vers,
+       Random:                       m.random,
+       SessionId:                    m.sessionId,
+       CipherSuite:                  m.cipherSuite,
+       CompressionMethod:            m.compressionMethod,
+       OcspStapling:                 m.ocspStapling,
+       TicketSupported:              m.ticketSupported,
+       SecureRenegotiationSupported: m.secureRenegotiationSupported,
+       SecureRenegotiation:          m.secureRenegotiation,
+       AlpnProtocol:                 m.alpnProtocol,
+       Scts:                         m.scts,
+       SupportedVersion:             m.supportedVersion,
+       ServerShare: KeyShare{
+           Group: m.serverShare.group,
+           Data:  m.serverShare.data,
+       },
+       SelectedIdentityPresent: m.selectedIdentityPresent,
+       SelectedIdentity:        m.selectedIdentity,
+       SupportedPoints:         m.supportedPoints,
+       Cookie:                  m.cookie,
+       SelectedGroup:           m.selectedGroup,
+   }
+}
+
 
 type serverHelloMsg struct {
 	original                     []byte

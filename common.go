@@ -298,6 +298,18 @@ type ConnectionState struct {
 	// resumed connections that don't support Extended Master Secret (RFC 7627).
 	TLSUnique []byte
 
+	ServerHello                 *ServerHelloMsg
+	ClientHello                 ClientHelloMsg
+	ServerExtensions            []Extension
+	ServerEncryptedExtensions   []Extension
+	ServerCertRequestExtensions []Extension
+	HelloRetryRequestExtensions []Extension
+	CertificateExtensions       []Extension
+	SendAlerts                  []Alert
+	RecvAlerts                  []Alert
+	Errors                      []error
+
+
 	// ECHAccepted indicates if Encrypted Client Hello was offered by the client
 	// and accepted by the server. Currently, ECH is supported only on the
 	// client side.
